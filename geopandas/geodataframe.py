@@ -7,7 +7,7 @@ import numpy as np
 from pandas import DataFrame, Series
 from shapely.geometry import mapping
 
-from geopandas import GeoSeries
+from geopandas import GeoSeries, OLD_PANDAS
 from geopandas.plotting import plot_dataframe
 import geopandas.io
 
@@ -306,3 +306,20 @@ class GeoDataFrame(DataFrame):
 
     def plot(self, *args, **kwargs):
         return plot_dataframe(self, *args, **kwargs)
+
+
+def dataframe_set_geometry(self, col, drop=True, inplace=False):
+    if inplace:
+        frame = self
+    else:
+        frame = self.copy()
+
+    frame.__class__ = GeoDataFrame
+    frame.set_geometry(col, drop=drop, inplace=inplace)
+
+    if not inplace:
+        return frame
+
+if not OLD_PANDAS:
+    from pandas.core.common import bind_method
+    bind_method(DataFrame, 'set_geometry', dataframe_set_geometry)
