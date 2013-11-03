@@ -36,11 +36,41 @@ class TestDataFrame(unittest.TestCase):
         self.assertTrue(type(self.df2) is GeoDataFrame)
         self.assertTrue(self.df2.crs == self.crs)
 
+    def test_different_geo_colname(self):
+        data = {"A": range(5), "B": range(-5, 1),
+                "location": [Point(x, y) for x, y in zip(range(5), range(5))]}
+        df = GeoDataFrame(data, crs=self.crs, geometry='location')
+        tm.assert_almost_equal(df.geometry.values, data['location'])
+        self.assert_('geometry' not in df)
+        # internal implementation detail
+        self.assertEqual(df._geometry_column_name, 'location')
+
+        geom2 = [Point(x, y) for x, y in zip(range(5, 10), range(5))]
+        df2 = df.set_geometry(geom2)
+        tm.assert_almost_equal(df.geometry, geom2)
+        self.assert_('geometry' not in df)
+        tm.assert_almost_equal(df2['location'], geom2)
+
+        # other way to handle this is to have setting list of geo default to
+        # 'geometry' [or go even more complicated with various schemes for
+        # dropping or something]
+
+        # geom2 = [Point(x, y) for x, y in zip(range(5, 10), range(5))]
+        # df2 = df.set_geometry(geom2)
+        # tm.assert_almost_equal(df.geometry, geom2)
+        # self.assert_('geometry' in df)
+        # self.assert_('location' in df)
+        # tm.assert_almost_equal(df2['location'], data['location'])
+        # tm.assert_almost_equal(df2['geometry'], geom2)
+
     def test_set_geometry(self):
         geom = [Point(x, y) for x, y in zip(range(5), range(5))]
         df2 = self.df.set_geometry(geom)
         self.assert_(self.df is not df2)
         tm.assert_almost_equal(df2.geometry.values, geom)
+
+        self.df.geometry = geom
+        tm.assert_almost_equal(self.df.geometry.values, geom)
 
     def test_set_geometry_col(self):
         g = self.df.geometry
@@ -52,15 +82,17 @@ class TestDataFrame(unittest.TestCase):
         self.assert_('simplified_geometry' not in df2)
         tm.assert_almost_equal(df2.geometry, g_simplified)
 
-    def test_set_geometry_col_no_drop(self):
-        g = self.df.geometry
-        g_simplified = g.simplify(100)
-        self.df['simplified_geometry'] = g_simplified
+        # no drop
         df2 = self.df.set_geometry('simplified_geometry', drop=False)
 
         self.assert_('simplified_geometry' in df2)
         self.assert_(df2.geometry.name == 'simplified_geometry')
         tm.assert_almost_equal(df2.geometry, g_simplified)
+
+        def _geo_property_with_name():
+            self.df.geometry = 'simplified_geometry'
+
+        self.assertRaises(ValueError, _geo_property_with_name)
 
     def test_set_geometry_inplace(self):
         geom = [Point(x,y) for x,y in zip(range(5), range(5))]
