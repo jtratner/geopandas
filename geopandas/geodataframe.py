@@ -44,9 +44,12 @@ class GeoDataFrame(DataFrame):
                                  self._geometry_column_name)
 
     def _set_geometry(self, col):
-        if col in self:
-            raise ValueError("Use set_geometry() to set an existing column as"
-                             " geometry")
+        try:
+            if col in self:
+                raise ValueError("Use set_geometry() to set an existing column as"
+                                " geometry")
+        except TypeError:
+            pass
 
         self.set_geometry(col, inplace=True)
 
@@ -96,6 +99,8 @@ class GeoDataFrame(DataFrame):
             if not isinstance(level, Series):
                 raise ValueError("Ambiguous column name %s" % level)
             if drop:
+                # this is a no-op if you're setting geometry to be the existing
+                # column
                 if col != frame._geometry_column_name:
                     frame[frame._geometry_column_name] = level
                     frame.drop(col, inplace=True)
