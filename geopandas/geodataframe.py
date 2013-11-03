@@ -1,6 +1,7 @@
 from collections import OrderedDict
 import json
 import os
+from warnings import warn
 
 import fiona
 import numpy as np
@@ -31,9 +32,11 @@ class GeoDataFrame(DataFrame):
         self.crs = crs
         if geometry is not None:
             self.set_geometry(geometry, inplace=True)
+        # TODO: Decide whether to require this initially.
         if self._geometry_column_name not in self:
-            raise ValueError("Must either pass geometry explicitly or include"
-                             "a column called %s" % self._geometry_column_name)
+            warn("Didn't either pass a column to e used for geometry OR a"
+                 " geometry column name, geo methods won't work until you use"
+                 " `set_geometry` or set the geometry property directly")
 
     @property
     def geometry(self):
