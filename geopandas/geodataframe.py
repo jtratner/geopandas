@@ -38,17 +38,18 @@ class GeoDataFrame(DataFrame):
                  " geometry column name, geo methods won't work until you use"
                  " `set_geometry` or set the geometry property directly")
 
-    @property
-    def geometry(self):
+    def _get_geometry(self):
         return self[self._geometry_column_name]
 
-    @geometry.setter
-    def geometry_setter(self, col):
+    def _set_geometry(self, col):
         if col in self:
             raise ValueError("Use set_geometry() to set an existing column as"
                              " geometry")
 
         self.set_geometry(col, inplace=True)
+
+    geometry = property(fget=_get_geometry, fset=_set_geometry,
+                        doc="Geometry data for GeoDataFrame")
 
     def set_geometry(self, col, drop=True, inplace=False):
         """
