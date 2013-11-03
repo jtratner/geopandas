@@ -100,10 +100,11 @@ class GeoDataFrame(DataFrame):
                 raise ValueError("Ambiguous column name %s" % level)
             if drop:
                 # this is a no-op if you're setting geometry to be the existing
-                # column
+                # column anyways
                 if col != frame._geometry_column_name:
                     frame[frame._geometry_column_name] = level
-                    frame.drop(col, inplace=True)
+                    # frame.drop does not accept inplace=True in < 0.13
+                    del frame[col]
             else:
                 # should previous geometry column be deleted here??
                 frame._geometry_column_name = col
