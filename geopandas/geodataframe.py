@@ -19,8 +19,6 @@ class GeoDataFrame(DataFrame):
     property and related methods. In addition to the standard arguments for a
     DataFrame, GeoDataFrame accepts the following additional *keyword*
     arguments.
-
-
     """
     _metadata = ['crs', '_geometry_column_name']
     _geometry_column_name = 'geometry'
@@ -39,7 +37,11 @@ class GeoDataFrame(DataFrame):
                  " `set_geometry` or set the geometry property directly")
 
     def _get_geometry(self):
-        return self[self._geometry_column_name]
+        try:
+            return self[self._geometry_column_name]
+        except KeyError:
+            raise AttributeError("No geometry column ('%s') set" %
+                                 self._geometry_column_name)
 
     def _set_geometry(self, col):
         if col in self:
