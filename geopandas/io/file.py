@@ -32,7 +32,5 @@ def read_file(filename, **kwargs):
             for key, value in rec['properties'].iteritems():
                 columns[key].append(value)
     geom = GeoSeries(geoms)
-    df = GeoDataFrame(columns)
-    df.geometry = geom
-    df.crs = crs
+    df = GeoDataFrame(columns, geometry=geom, crs=crs)
     return df
