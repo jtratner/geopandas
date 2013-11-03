@@ -14,19 +14,38 @@ import geopandas.io
 
 class GeoDataFrame(DataFrame):
     """
-    A GeoDataFrame object is a pandas.DataFrame that has a column
-    named 'geometry' which is a GeoSeries.
+    A GeoDataFrame object is a :class:`~pandas.DataFrame` that has a geometry
+    property and related methods. In addition to the standard arguments for a
+    DataFrame, GeoDataFrame accepts the following additional *keyword*
+    arguments.
+
+
     """
-    _metadata = ['crs']
+    _metadata = ['crs', '_geometry_column_name']
+    _geometry_column_name = 'geometry'
 
     def __init__(self, *args, **kwargs):
         crs = kwargs.pop('crs', None)
+        geometry = kwargs.pop('geometry', None)
         super(GeoDataFrame, self).__init__(*args, **kwargs)
         self.crs = crs
+        if geometry is not None:
+            self.set_geometry(geometry, inplace=True)
+        if self._geometry_column_name not in self:
+            raise ValueError("Must either pass geometry explicitly or include"
+                             "a column called %s" % self._geometry_column_name)
 
     @property
     def geometry(self):
-        return self['geometry']
+        return self[self._geometry_column_name]
+
+    @geometry.setter
+    def geometry_setter(self, col):
+        if col in self:
+            raise ValueError("Use set_geometry() to set an existing column as"
+                             " geometry")
+
+        self.set_geometry(col, inplace=True)
 
     def set_geometry(self, col, drop=True, inplace=False):
         """
@@ -58,20 +77,25 @@ class GeoDataFrame(DataFrame):
         else:
             frame = self.copy()
 
-        to_remove = None
-        if isinstance(col, Series):
-            level = col.values
-        elif isinstance(col, (list, np.ndarray)):
+        if isinstance(col, (list, np.ndarray, Series)):
             level = col
+            frame[frame._geometry_column_name] = level
         else:
-            level = frame[col].values
+            if col not in frame:
+                try:
+                    col = self.columns[col]
+                except (KeyError, IndexError, ValueError):
+                    pass
+            level = frame[col]
+            if not isinstance(level, Series):
+                raise ValueError("Ambiguous column name %s" % level)
             if drop:
-                to_remove = col
-
-        if to_remove:
-            del frame[to_remove]
-
-        frame['geometry'] = level
+                if col != frame._geometry_column_name:
+                    frame[frame._geometry_column_name] = level
+                    frame.drop(col, inplace=True)
+            else:
+                # should previous geometry column be deleted here??
+                frame._geometry_column_name = col
 
         if not inplace:
             return frame
@@ -80,7 +104,7 @@ class GeoDataFrame(DataFrame):
     def from_file(cls, filename, **kwargs):
         """
         Alternate constructor to create a GeoDataFrame from a file.
-        
+
         Example:
             df = geopandas.GeoDataFrame.from_file('nybb.shp')
 
@@ -145,12 +169,13 @@ class GeoDataFrame(DataFrame):
 
         def feature(i, row):
             row = f(row)
+            geo_col_name = self._geometry_column_name
             return {
                 'id': str(i),
                 'type': 'Feature',
                 'properties': {
-                    k: v for k, v in row.iteritems() if k != 'geometry'},
-                'geometry': mapping(row['geometry']) }
+                    k: v for k, v in row.iteritems() if k != geo_col_name},
+                'geometry': mapping(row[geo_col_name]) }
 
         return json.dumps(
             {'type': 'FeatureCollection',
@@ -175,6 +200,7 @@ class GeoDataFrame(DataFrame):
         The *kwargs* are passed to fiona.open and can be used to write 
         to multi-layer data, store data within archives (zip files), etc.
         """
+        geo_col_name = self._geometry_column_name
         def convert_type(in_type):
             if in_type == object:
                 return 'str'
@@ -185,15 +211,15 @@ class GeoDataFrame(DataFrame):
                 'id': str(i),
                 'type': 'Feature',
                 'properties': {
-                    k: v for k, v in row.iteritems() if k != 'geometry'},
-                'geometry': mapping(row['geometry']) }
+                    k: v for k, v in row.iteritems() if k != geo_col_name},
+                'geometry': mapping(row[geo_col_name]) }
         
         properties = OrderedDict([(col, convert_type(_type)) for col, _type 
-            in zip(self.columns, self.dtypes) if col!='geometry'])
+            in zip(self.columns, self.dtypes) if col!=geo_col_name])
         # Need to check geom_types before we write to file... 
         # Some (most?) providers expect a single geometry type: 
         # Point, LineString, or Polygon
-        geom_types = self['geometry'].geom_type.unique()
+        geom_types = self.geometry.geom_type.unique()
         from os.path import commonprefix # To find longest common prefix
         geom_type = commonprefix([g[::-1] for g in geom_types])[::-1]  # Reverse
         if geom_type == '': # No common suffix = mixed geometry types
@@ -231,16 +257,17 @@ class GeoDataFrame(DataFrame):
         GeoSeries. If it's a DataFrame with a 'geometry' column, return a
         GeoDataFrame.
         """
+        geo_col_name = self._geometry_column_name
         result = super(GeoDataFrame, self).__getitem__(key)
-        if isinstance(key, basestring) and key == 'geometry':
+        if isinstance(key, basestring) and key == geo_col_name:
             result.__class__ = GeoSeries
             result.crs = self.crs
-        elif isinstance(result, DataFrame) and 'geometry' in result:
+        elif isinstance(result, DataFrame) and geo_col_name in result:
             result.__class__ = GeoDataFrame
             result.crs = self.crs
-        elif isinstance(result, DataFrame) and 'geometry' not in result:
+        elif isinstance(result, DataFrame) and geo_col_name not in result:
             result.__class__ = DataFrame
-            result.crs = self.crs
+            result['crs'] = self.crs
         return result
 
     #

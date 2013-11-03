@@ -76,12 +76,11 @@ class GeoSeries(Series):
 
     def to_file(self, filename, driver="ESRI Shapefile", **kwargs):
         from geopandas import GeoDataFrame
-        data = GeoDataFrame({"geometry": self,
-                          "id":self.index.values},
-                          index=self.index)
+        data = GeoDataFrame({"id": self.index}, index=self.index,
+                            geometry=self, crs=self.crs)
         data.crs = self.crs
         data.to_file(filename, driver, **kwargs)
-        
+
     #
     # Internal methods
     #

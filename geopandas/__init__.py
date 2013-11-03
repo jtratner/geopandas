@@ -2,6 +2,13 @@ try:
     from geopandas.version import version as __version__
 except ImportError:
     __version__ = '0.1.0.dev-unknown'
+
+# useful imports for interactive work
+import pandas as pd
+import numpy as np
+
+OLD_PANDAS = issubclass(pd.Series, np.ndarray)
+
 from geoseries import GeoSeries
 from geodataframe import GeoDataFrame
 

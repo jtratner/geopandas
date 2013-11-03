@@ -33,6 +33,6 @@ def read_file(filename, **kwargs):
                 columns[key].append(value)
     geom = GeoSeries(geoms)
     df = GeoDataFrame(columns)
-    df['geometry'] = geom
+    df.geometry = geom
     df.crs = crs
     return df

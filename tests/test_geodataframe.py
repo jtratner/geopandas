@@ -5,6 +5,7 @@ import tempfile
 import shutil
 
 import numpy as np
+import pandas.util.testing as tm
 from shapely.geometry import Point, Polygon
 
 
@@ -36,11 +37,10 @@ class TestDataFrame(unittest.TestCase):
         self.assertTrue(self.df2.crs == self.crs)
 
     def test_set_geometry(self):
-        geom = [Point(x,y) for x,y in zip(range(5), range(5))]
+        geom = [Point(x, y) for x, y in zip(range(5), range(5))]
         df2 = self.df.set_geometry(geom)
         self.assert_(self.df is not df2)
-        for x, y in zip(df2.geometry.values, geom):
-            self.assertEqual(x, y)
+        tm.assert_almost_equal(df2.geometry.values, geom)
 
     def test_set_geometry_col(self):
         g = self.df.geometry
@@ -50,9 +50,7 @@ class TestDataFrame(unittest.TestCase):
 
         # Drop is true by default
         self.assert_('simplified_geometry' not in df2)
-
-        for x, y in zip(df2.geometry.values, g_simplified):
-            self.assertEqual(x, y)
+        tm.assert_almost_equal(df2.geometry, g_simplified)
 
     def test_set_geometry_col_no_drop(self):
         g = self.df.geometry
@@ -61,9 +59,8 @@ class TestDataFrame(unittest.TestCase):
         df2 = self.df.set_geometry('simplified_geometry', drop=False)
 
         self.assert_('simplified_geometry' in df2)
-
-        for x, y in zip(df2.geometry.values, g_simplified):
-            self.assertEqual(x, y)
+        self.assert_(df2.geometry.name == 'simplified_geometry')
+        tm.assert_almost_equal(df2.geometry, g_simplified)
 
     def test_set_geometry_inplace(self):
         geom = [Point(x,y) for x,y in zip(range(5), range(5))]
@@ -169,7 +166,8 @@ class TestDataFrame(unittest.TestCase):
         df2.crs = {'init': 'epsg:26918', 'no_defs': True}
         lonlat = df2.to_crs(epsg=4326)
         utm = lonlat.to_crs(epsg=26918)
-        self.assertTrue(all(df2['geometry'].almost_equals(utm['geometry'], decimal=2)))
+        self.assertTrue(df2.geometry.almost_equals(utm.geometry,
+                                                   decimal=2).all())
 
     def test_from_postgis_default(self):
         con = tests.util.connect('test_geopandas')
